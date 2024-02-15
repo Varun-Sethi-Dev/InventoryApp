@@ -16,6 +16,7 @@
 
 package com.example.inventory.ui.item
 
+import android.widget.Toast
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -43,9 +44,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -57,6 +60,7 @@ import com.example.inventory.data.Item
 import com.example.inventory.ui.AppViewModelProvider
 import com.example.inventory.ui.navigation.NavigationDestination
 import com.example.inventory.ui.theme.InventoryTheme
+import kotlinx.coroutines.launch
 
 object ItemDetailsDestination : NavigationDestination {
     override val route = "item_details"
@@ -73,32 +77,34 @@ fun ItemDetailsScreen(
     modifier: Modifier = Modifier,
     viewModel: ItemDetailsViewModel = viewModel(factory = AppViewModelProvider.Factory)
 ) {
-    val uiState  = viewModel.uiState.collectAsState()
-    Scaffold(
-        topBar = {
-            InventoryTopAppBar(
-                title = stringResource(ItemDetailsDestination.titleRes),
-                canNavigateBack = true,
-                navigateUp = navigateBack
-            )
-        }, floatingActionButton = {
-            FloatingActionButton(
-                onClick = { navigateToEditItem(0) },
-                shape = MaterialTheme.shapes.medium,
-                modifier = Modifier.padding(dimensionResource(id = R.dimen.padding_large))
+    val uiState = viewModel.uiState.collectAsState()
+    val coroutineScope = rememberCoroutineScope()
+    Scaffold(topBar = {
+        InventoryTopAppBar(
+            title = stringResource(ItemDetailsDestination.titleRes),
+            canNavigateBack = true,
+            navigateUp = navigateBack
+        )
+    }, floatingActionButton = {
+        FloatingActionButton(
+            onClick = { navigateToEditItem(uiState.value.itemDetails.id) },
+            shape = MaterialTheme.shapes.medium,
+            modifier = Modifier.padding(dimensionResource(id = R.dimen.padding_large))
 
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Edit,
-                    contentDescription = stringResource(R.string.edit_item_title),
-                )
-            }
-        }, modifier = modifier
+        ) {
+            Icon(
+                imageVector = Icons.Default.Edit,
+                contentDescription = stringResource(R.string.edit_item_title),
+            )
+        }
+    }, modifier = modifier
     ) { innerPadding ->
-        ItemDetailsBody(
-            itemDetailsUiState = uiState.value,
-            onSellItem = { },
-            onDelete = { },
+        ItemDetailsBody(itemDetailsUiState = uiState.value,
+            onSellItem = { viewModel.reduceQuantityByOne() },
+            onDelete = { coroutineScope.launch {
+                viewModel.deleteItem()
+                navigateBack()
+            } },
             modifier = Modifier
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
@@ -113,6 +119,7 @@ private fun ItemDetailsBody(
     onDelete: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     Column(
         modifier = modifier.padding(dimensionResource(id = R.dimen.padding_medium)),
         verticalArrangement = Arrangement.spacedBy(dimensionResource(id = R.dimen.padding_medium))
@@ -120,14 +127,24 @@ private fun ItemDetailsBody(
         var deleteConfirmationRequired by rememberSaveable { mutableStateOf(false) }
 
         ItemDetails(
-            item = itemDetailsUiState.itemDetails.toItem(),
-            modifier = Modifier.fillMaxWidth()
+            item = itemDetailsUiState.itemDetails.toItem(), modifier = Modifier.fillMaxWidth()
         )
         Button(
-            onClick = onSellItem,
+            onClick = {
+                if (itemDetailsUiState.itemDetails.quantity == "1") {
+                    onSellItem()
+                    Toast.makeText(
+                        context,
+                        "${itemDetailsUiState.itemDetails.name} is now Out of Stock",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                } else {
+                    onSellItem()
+                }
+            },
             modifier = Modifier.fillMaxWidth(),
             shape = MaterialTheme.shapes.small,
-            enabled = true
+            enabled = !itemDetailsUiState.outOfStock
         ) {
             Text(stringResource(R.string.sell))
         }
@@ -139,11 +156,10 @@ private fun ItemDetailsBody(
             Text(stringResource(R.string.delete))
         }
         if (deleteConfirmationRequired) {
-            DeleteConfirmationDialog(
-                onDeleteConfirm = {
-                    deleteConfirmationRequired = false
-                    onDelete()
-                },
+            DeleteConfirmationDialog(onDeleteConfirm = {
+                deleteConfirmationRequired = false
+                onDelete()
+            },
                 onDeleteCancel = { deleteConfirmationRequired = false },
                 modifier = Modifier.padding(dimensionResource(id = R.dimen.padding_medium))
             )
@@ -156,8 +172,7 @@ fun ItemDetails(
     item: Item, modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = modifier,
-        colors = CardDefaults.cardColors(
+        modifier = modifier, colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.primaryContainer,
             contentColor = MaterialTheme.colorScheme.onPrimaryContainer
         )
@@ -171,9 +186,7 @@ fun ItemDetails(
             )
         ) {
             ItemDetailsRow(
-                labelResID = R.string.item,
-                itemDetail = item.name,
-                modifier = Modifier.padding(
+                labelResID = R.string.item, itemDetail = item.name, modifier = Modifier.padding(
                     horizontal = dimensionResource(id = R.dimen.padding_medium)
                 )
             )
@@ -208,11 +221,9 @@ private fun ItemDetailsRow(
 
 @Composable
 private fun DeleteConfirmationDialog(
-    onDeleteConfirm: () -> Unit,
-    onDeleteCancel: () -> Unit,
-    modifier: Modifier = Modifier
+    onDeleteConfirm: () -> Unit, onDeleteCancel: () -> Unit, modifier: Modifier = Modifier
 ) {
-    AlertDialog(onDismissRequest = { /* Do nothing */ },
+    AlertDialog(onDismissRequest = {onDeleteCancel() },
         title = { Text(stringResource(R.string.attention)) },
         text = { Text(stringResource(R.string.delete_question)) },
         modifier = modifier,
@@ -232,13 +243,8 @@ private fun DeleteConfirmationDialog(
 @Composable
 fun ItemDetailsScreenPreview() {
     InventoryTheme {
-        ItemDetailsBody(
-            ItemDetailsUiState(
-                outOfStock = true,
-                itemDetails = ItemDetails(1, "Pen", "$100", "10")
-            ),
-            onSellItem = {},
-            onDelete = {}
-        )
+        ItemDetailsBody(ItemDetailsUiState(
+            outOfStock = true, itemDetails = ItemDetails(1, "Pen", "$100", "10")
+        ), onSellItem = {}, onDelete = {})
     }
 }

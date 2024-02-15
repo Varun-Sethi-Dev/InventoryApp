@@ -19,7 +19,7 @@ abstract class InventoryDatabase : RoomDatabase() {
                     name = "item_database"
                 ).fallbackToDestructiveMigration().build().also {
                         Instance = it
-                }
+                }tus
             }
         }
     }

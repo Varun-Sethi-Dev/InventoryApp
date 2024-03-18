@@ -25,7 +25,7 @@ interface AppContainer {
     val itemsRepository: ItemsRepository
 }
 
-/**
+/*
  * [AppContainer] implementation that provides instance of [OfflineItemsRepository]
  */
 class AppDataContainer(private val context: Context) : AppContainer {

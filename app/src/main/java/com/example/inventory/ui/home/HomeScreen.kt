@@ -49,12 +49,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.lifecycle.viewmodel.viewModelFactory
 import com.example.inventory.InventoryTopAppBar
 import com.example.inventory.R
 import com.example.inventory.data.Item
 import com.example.inventory.ui.AppViewModelProvider
-import com.example.inventory.ui.item.formatedPrice
+import com.example.inventory.ui.item.formattedPrice
 import com.example.inventory.ui.navigation.NavigationDestination
 import com.example.inventory.ui.theme.InventoryTheme
 
@@ -72,8 +71,8 @@ object HomeDestination : NavigationDestination {
 fun HomeScreen(
     navigateToItemEntry: () -> Unit,
     navigateToItemUpdate: (Int) -> Unit,
-    viewModel: HomeViewModel = viewModel(factory = AppViewModelProvider.Factory ),
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    viewModel: HomeViewModel = viewModel(factory = AppViewModelProvider.Factory )
 ) {
     val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
     val homeUiState = viewModel.homeUiState.collectAsState()
@@ -168,7 +167,7 @@ private fun InventoryItem(
                 )
                 Spacer(Modifier.weight(1f))
                 Text(
-                    text = item.formatedPrice(),
+                    text = item.formattedPrice(),
                     style = MaterialTheme.typography.titleMedium
                 )
             }

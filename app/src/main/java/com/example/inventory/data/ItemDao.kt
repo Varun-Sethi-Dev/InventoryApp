@@ -22,6 +22,10 @@ interface ItemDao {
     @Query(value = "SELECT * FROM items WHERE id = :id")
     fun getItem(id: Int): Flow<Item>
 
+    /*Because of the Flow return type, Room also runs the query
+    on the background thread. You don't need to explicitly make it
+     a suspend function and call it inside a coroutine scope*/
+
     @Query("select * from items order by name asc")
     fun getAllItems(): Flow<List<Item>>
 }

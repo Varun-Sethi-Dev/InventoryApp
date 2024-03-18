@@ -85,7 +85,7 @@ fun ItemDetails.toItem(): Item = Item(
     quantity = quantity.toIntOrNull() ?: 0
 )
 
-fun Item.formatedPrice(): String {
+fun Item.formattedPrice(): String {
     return NumberFormat.getCurrencyInstance().format(price)
 }
 
